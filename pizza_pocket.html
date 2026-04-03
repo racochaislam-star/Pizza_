@@ -230,6 +230,8 @@ let displayPinBuf = '';
 let currentMode = null;
 
 let FB_URL = localStorage.getItem('pizza_fb_url') || '';
+let soundEnabled = false;
+
 let channel = null;
 try { channel = new BroadcastChannel('pizza_channel'); channel.onmessage = (event) => { if (event.data.type === 'orders_updated') { loadOrders(); if (currentMode === 'admin') renderAdmin(); if (currentMode === 'display') renderDisplay(); } if (event.data.type === 'sound_trigger' && currentMode === 'display') { announceOrder(event.data.orderNum); } }; } catch(e) { console.log('BroadcastChannel not supported'); }
 
@@ -242,8 +244,8 @@ let fbLastOrdersHash = '';
 
 function startFbPolling() {
     if (fbPollInt) clearInterval(fbPollInt);
+    if (!FB_URL) return;
     fbPollInt = setInterval(async () => {
-        if (!FB_URL) return;
         try {
             const data = await fbGet('state');
             if (!data) return;
@@ -258,7 +260,8 @@ function startFbPolling() {
             if (data.archive) { archive = data.archive; localStorage.setItem(SK_A, JSON.stringify(archive)); }
             if (currentMode === 'display' && data.sound && data.sound.ts > fbLastSoundTs && (Date.now() - data.sound.ts) < 15000) {
                 fbLastSoundTs = data.sound.ts;
-                announceOrder(data.sound.n);
+                if (soundEnabled) announceOrder(data.sound.n);
+                else toast("🔊 اضغط على زر تفعيل الصوت");
             }
         } catch(e) {}
     }, 1500);
@@ -332,7 +335,6 @@ function playChime(callback){ const ctx = getAudioContext(); if(ctx.state === 's
 function numberToFrench(s){ const n = parseInt(s,10); const words = ['zéro','un','deux','trois','quatre','cinq','six','sept','huit','neuf','dix','onze','douze','treize','quatorze','quinze','seize','dix-sept','dix-huit','dix-neuf','vingt','vingt et un','vingt-deux','vingt-trois','vingt-quatre','vingt-cinq','vingt-six','vingt-sept','vingt-huit','vingt-neuf','trente','trente et un','trente-deux','trente-trois','trente-quatre','trente-cinq','trente-six','trente-sept','trente-huit','trente-neuf','quarante','quarante et un','quarante-deux','quarante-trois','quarante-quatre','quarante-cinq','quarante-six','quarante-sept','quarante-huit','quarante-neuf','cinquante','cinquante et un','cinquante-deux','cinquante-trois','cinquante-quatre','cinquante-cinq','cinquante-six','cinquante-sept','cinquante-huit','cinquante-neuf','soixante','soixante et un','soixante-deux','soixante-trois','soixante-quatre','soixante-cinq','soixante-six','soixante-sept','soixante-huit','soixante-neuf','soixante-dix','soixante et onze','soixante-douze','soixante-treize','soixante-quatorze','soixante-quinze','soixante-seize','soixante-dix-sept','soixante-dix-huit','soixante-dix-neuf','quatre-vingts','quatre-vingt-un','quatre-vingt-deux','quatre-vingt-trois','quatre-vingt-quatre','quatre-vingt-cinq','quatre-vingt-six','quatre-vingt-sept','quatre-vingt-huit','quatre-vingt-neuf','quatre-vingt-dix','quatre-vingt-onze','quatre-vingt-douze','quatre-vingt-treize','quatre-vingt-quatorze','quatre-vingt-quinze','quatre-vingt-seize','quatre-vingt-dix-sept','quatre-vingt-dix-huit','quatre-vingt-dix-neuf']; return words[n] || s; }
 function numberToArabic(s){ const n = parseInt(s,10); const words = ['صفر','واحد','اثنان','ثلاثة','أربعة','خمسة','ستة','سبعة','ثمانية','تسعة','عشرة','أحد عشر','اثنا عشر','ثلاثة عشر','أربعة عشر','خمسة عشر','ستة عشر','سبعة عشر','ثمانية عشر','تسعة عشر','عشرون','واحد وعشرون','اثنان وعشرون','ثلاثة وعشرون','أربعة وعشرون','خمسة وعشرون','ستة وعشرون','سبعة وعشرون','ثمانية وعشرون','تسعة وعشرون','ثلاثون','واحد وثلاثون','اثنان وثلاثون','ثلاثة وثلاثون','أربعة وثلاثون','خمسة وثلاثون','ستة وثلاثون','سبعة وثلاثون','ثمانية وثلاثون','تسعة وثلاثون','أربعون','واحد وأربعون','اثنان وأربعون','ثلاثة وأربعون','أربعة وأربعون','خمسة وأربعون','ستة وأربعون','سبعة وأربعون','ثمانية وأربعون','تسعة وأربعون','خمسون','واحد وخمسون','اثنان وخمسون','ثلاثة وخمسون','أربعة وخمسون','خمسة وخمسون','ستة وخمسون','سبعة وخمسون','ثمانية وخمسون','تسعة وخمسون','ستون','واحد وستون','اثنان وستون','ثلاثة وستون','أربعة وستون','خمسة وستون','ستة وستون','سبعة وستون','ثمانية وستون','تسعة وستون','سبعون','واحد وسبعون','اثنان وسبعون','ثلاثة وسبعون','أربعة وسبعون','خمسة وسبعون','ستة وسبعون','سبعة وسبعون','ثمانية وسبعون','تسعة وسبعون','ثمانون','واحد وثمانون','اثنان وثمانون','ثلاثة وثمانون','أربعة وثمانون','خمسة وثمانون','ستة وثمانون','سبعة وثمانون','ثمانية وثمانون','تسعة وثمانون','تسعون','واحد وتسعون','اثنان وتسعون','ثلاثة وتسعون','أربعة وتسعون','خمسة وتسعون','ستة وتسعون','سبعة وتسعون','ثمانية وتسعون','تسعة وتسعون']; return words[n] || s; }
 
-let soundEnabled = false;
 function enableSoundOnDisplay() {
     const ctx = getAudioContext();
     ctx.resume();
